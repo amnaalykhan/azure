@@ -1,0 +1,39 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+terraform.tfvars
+
+# SSH Keys
+*.pem
+*_key
+*_key.pub
+.ssh/
+
+# Backups
+*.tar.gz
+/tmp/
+fyre_migration_*/
+
+# Logs
+*.log
+migration_*.txt
+
+# Azure credentials
+.azure/
+
+# Sensitive data
+*password*
+*secret*
+*credential*
+
+# OS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
