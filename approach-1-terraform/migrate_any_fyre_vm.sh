@@ -62,7 +62,7 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-WORK_DIR="migration_${TIMESTAMP}"
+WORK_DIR="${SCRIPT_DIR}/migration_${TIMESTAMP}"
 LOG_FILE="$WORK_DIR/migration.log"
 BACKUP_DIR="$WORK_DIR/backup"
 DISCOVERY_DIR=""
@@ -73,6 +73,9 @@ WORKING_REGION=""
 AZURE_ADMIN="azureuser"
 MY_PUBLIC_IP=""
 SSH_KEY_PATH=""
+
+# Create work dir immediately so tlog() can write before preflight() runs
+mkdir -p "$WORK_DIR" "$BACKUP_DIR"
 
 # ── SSH helpers ────────────────────────────────────────────────────────────────
 ssh_src() {
@@ -161,22 +164,29 @@ preflight() {
     ok "Azure authenticated: $AZ_ACCOUNT"
 
     # Detect your public IP for SSH CIDR (auto — no manual editing needed)
+    # Use ipv4.* endpoints to force IPv4 — Azure NSG rules do not accept IPv6 prefixes
     section "Detecting public IP for SSH CIDR"
-    MY_PUBLIC_IP=$(curl -fsSL --max-time 5 ifconfig.me 2>/dev/null \
-        || curl -fsSL --max-time 5 icanhazip.com 2>/dev/null \
-        || curl -fsSL --max-time 5 api.ipify.org 2>/dev/null \
+    MY_PUBLIC_IP=$(curl -fsSL --max-time 5 https://ipv4.icanhazip.com 2>/dev/null \
+        || curl -fsSL --max-time 5 https://api4.ipify.org 2>/dev/null \
+        || curl -fsSL --max-time 5 https://ipv4bot.whatismyipaddress.com 2>/dev/null \
         || echo "")
-    if [[ -n "$MY_PUBLIC_IP" ]]; then
+    # If we still got an IPv6 address (contains ':'), fall back to open CIDR
+    if [[ "$MY_PUBLIC_IP" == *:* ]]; then
+        warn "Detected IPv6 address ($MY_PUBLIC_IP) — Azure NSG requires IPv4, using 0.0.0.0/0"
+        MY_PUBLIC_IP="0.0.0.0"
+    fi
+    if [[ -n "$MY_PUBLIC_IP" && "$MY_PUBLIC_IP" != "0.0.0.0" ]]; then
         ok "Your public IP: $MY_PUBLIC_IP → allowed_ssh_cidr = ${MY_PUBLIC_IP}/32"
     else
-        warn "Could not auto-detect public IP — will use 0.0.0.0/0 for SSH CIDR (restrict manually after deploy)"
+        warn "Could not auto-detect IPv4 — will use 0.0.0.0/0 for SSH CIDR (restrict manually after deploy)"
         MY_PUBLIC_IP="0.0.0.0"
     fi
 
     # Detect SSH public key (auto — no manual path needed)
     section "Detecting SSH public key"
     SSH_KEY_PATH=""
-    for candidate in ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub ~/.ssh/id_ecdsa.pub; do
+    # Azure only supports RSA keys — check RSA first
+    for candidate in ~/.ssh/id_rsa.pub ~/.ssh/id_ecdsa.pub ~/.ssh/id_ed25519.pub; do
         if [[ -f "$candidate" ]]; then
             SSH_KEY_PATH="$candidate"
             ok "SSH public key found: $SSH_KEY_PATH"
@@ -184,9 +194,9 @@ preflight() {
         fi
     done
     if [[ -z "$SSH_KEY_PATH" ]]; then
-        info "No SSH key found — generating ed25519 key pair at ~/.ssh/id_ed25519"
-        ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "fyre-migration" &>/dev/null
-        SSH_KEY_PATH=~/.ssh/id_ed25519.pub
+        info "No RSA SSH key found — generating RSA 4096 key pair at ~/.ssh/id_rsa"
+        ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N "" -C "fyre-migration" &>/dev/null
+        SSH_KEY_PATH=~/.ssh/id_rsa.pub
         ok "SSH key generated: $SSH_KEY_PATH"
     fi
 
@@ -204,7 +214,7 @@ preflight() {
     # vCore quota check — try candidate regions, pick first with enough quota
     section "Azure quota check"
     info "Checking available vCores across regions..."
-    CANDIDATES=(eastus2 centralus westus2 uksouth canadacentral australiaeast)
+    CANDIDATES=(southeastasia centralindia eastus canadacentral northeurope)
     for region in "${CANDIDATES[@]}"; do
         QUOTA=$(az vm list-usage --location "$region" \
             --query "[?name.value=='cores'].{used:currentValue,limit:limit}" \
@@ -284,6 +294,14 @@ deploy_azure_infra() {
         v=$(grep '^project_name'      "$DISCOVERY_DIR/terraform_vars.auto.tfvars" | cut -d'"' -f2);  [[ -n "$v" ]] && DISC_PROJECT_NAME="$v"
     fi
 
+    # Cap VM size to 4 vCores max — student subscriptions typically have 6 vCore quota
+    # Standard_D8s_v3 = 8 cores (too large), Standard_D4s_v3 = 4 cores (fits)
+    case "$DISC_VM_SIZE" in
+        *D8s*|*D16s*|*D32s*|*E8s*|*E16s*|*F8s*|*F16s*)
+            warn "VM size $DISC_VM_SIZE requires >6 vCores — downscaling to Standard_D4s_v3"
+            DISC_VM_SIZE="Standard_D4s_v3" ;;
+    esac
+
     # ── Auto-generate terraform.tfvars — no manual editing required ────────────
     section "Generating terraform.tfvars from discovered values"
     cat > "$TF_DIR/terraform.tfvars" <<TFVARS
@@ -323,6 +341,9 @@ TFVARS
     info "  allowed_ssh_cidr = ${MY_PUBLIC_IP}/32"
 
     cd "$TF_DIR"
+
+    # Remove stale plan so terraform always re-plans with current tfvars
+    rm -f tfplan
 
     section "terraform init"
     terraform init -upgrade 2>&1 | tee -a "$LOG_FILE"

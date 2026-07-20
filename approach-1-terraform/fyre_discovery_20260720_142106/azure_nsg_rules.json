@@ -1,0 +1,26 @@
+{
+  "nsg_rules": [
+    {
+      "name": "SSH",
+      "priority": 100,
+      "direction": "Inbound",
+      "access": "Allow",
+      "protocol": "Tcp",
+      "source_port_range": "*",
+      "destination_port_range": "22",
+      "source_address_prefix": "*",
+      "destination_address_prefix": "*"
+    },
+    {
+      "name": "AllowAllOutbound",
+      "priority": 100,
+      "direction": "Outbound",
+      "access": "Allow",
+      "protocol": "*",
+      "source_port_range": "*",
+      "destination_port_range": "*",
+      "source_address_prefix": "*",
+      "destination_address_prefix": "*"
+    }
+  ]
+}

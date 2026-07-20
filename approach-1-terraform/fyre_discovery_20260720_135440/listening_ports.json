@@ -1,0 +1,19 @@
+{
+  "tcp": [
+    {
+      "port": 22,
+      "protocol": "tcp",
+      "process": "unknown"
+    }
+  ],
+  "udp": [
+    {
+      "port": 68,
+      "protocol": "udp"
+    },
+    {
+      "port": 323,
+      "protocol": "udp"
+    }
+  ]
+}

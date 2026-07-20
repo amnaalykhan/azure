@@ -1,0 +1,6 @@
+{
+  "type": "firewalld",
+  "ports": "8080/tcp",
+  "services": "cockpit dhcpv6-client http ssh",
+  "full_output": "public (active)\n  target: default\n  icmp-block-inversion: no\n  interfaces: eth0 eth1\n  sources: \n  services: cockpit dhcpv6-client http ssh\n  ports: 8080/tcp\n  protocols: \n  forward: yes\n  masquerade: no\n  forward-ports: \n  source-ports: \n  icmp-blocks: \n  rich rules: \n"
+}

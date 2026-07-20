@@ -1,0 +1,14 @@
+{
+  "hostname": "itz-693000iler-gw3v1m6w.dev.fyre.ibm.com",
+  "fqdn": "9.46.106.146",
+  "ssh_user": "root",
+  "os": "Red Hat Enterprise Linux 9.6 (Plow)",
+  "os_id": "rhel",
+  "kernel": "5.14.0-570.62.1.el9_6.x86_64",
+  "architecture": "x86_64",
+  "vcpus": 8,
+  "memory_gb": 15,
+  "disk_total_gb": 260,
+  "disk_used_gb": 22,
+  "discovered_at": "2026-07-20T08:04:48Z"
+}
