@@ -1,0 +1,26 @@
+# Azure Terraform Configuration Example
+# Copy this file to terraform.tfvars and fill in your values
+
+# ── Required — you MUST fill these in ────────────────────────────────────────
+subscription_id = "your-subscription-id-here"
+tenant_id       = "your-tenant-id-here"
+
+# Your current public IP (run: curl ifconfig.me)
+# SSH is blocked unless this is set — never use 0.0.0.0/0 in production
+allowed_ssh_cidr = "YOUR_IP/32"
+
+# Path to your SSH public key (used to authenticate to the Azure VM)
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# ── Deployment configuration ─────────────────────────────────────────────────
+location     = "eastus2"        # Change to your allowed region
+project_name = "fyremigration"  # Change to your project name (max 16 chars)
+
+# ── VM configuration (auto-set by migrate_any_fyre_vm.sh from discovery) ─────
+vm_size           = "Standard_D4s_v3"  # Adjust based on your quota and needs
+os_disk_size_gb   = 64
+data_disk_size_gb = 32
+
+# ── Network access (optional overrides) ──────────────────────────────────────
+# allowed_tws_cidr = "10.0.0.0/16"   # Defaults to internal VNet only
+# allowed_db_cidr  = "10.0.0.0/16"   # Defaults to internal VNet only

@@ -90,14 +90,14 @@ output "backup_vault_name" {
 output "migration_summary" {
   description = "Migration summary information"
   value = {
-    vm_size              = var.vm_size
-    os_disk_size_gb      = var.os_disk_size_gb
-    data_disk_size_gb    = var.data_disk_size_gb
-    private_ip           = azurerm_network_interface.vm.private_ip_address
-    public_ip            = var.create_public_ip ? azurerm_public_ip.vm[0].ip_address : "None"
-    backup_enabled       = var.enable_backup
-    resource_group       = azurerm_resource_group.main.name
-    location             = azurerm_resource_group.main.location
+    vm_size           = var.vm_size
+    os_disk_size_gb   = var.os_disk_size_gb
+    data_disk_size_gb = var.data_disk_size_gb
+    private_ip        = azurerm_network_interface.vm.private_ip_address
+    public_ip         = var.create_public_ip ? azurerm_public_ip.vm[0].ip_address : "None"
+    backup_enabled    = var.enable_backup
+    resource_group    = azurerm_resource_group.main.name
+    location          = azurerm_resource_group.main.location
   }
 }
 

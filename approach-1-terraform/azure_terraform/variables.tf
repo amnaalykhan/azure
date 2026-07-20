@@ -53,29 +53,30 @@ variable "db_subnet_cidr" {
 
 # Security
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed for SSH access"
+  description = "CIDR block allowed for SSH access — set to YOUR_IP/32 before applying"
   type        = string
-  default     = "0.0.0.0/0"  # Change to your IP range
+  # No default: you MUST set this in terraform.tfvars to your IP (curl ifconfig.me)
+  # Leaving SSH open to 0.0.0.0/0 exposes the VM to the entire internet.
 }
 
 variable "allowed_tws_cidr" {
-  description = "CIDR block allowed for TWS access"
+  description = "CIDR block allowed for TWS port access (31114/31116)"
   type        = string
-  default     = "0.0.0.0/0"  # Change to your TWS network
+  default     = "10.0.0.0/16" # Internal VNet only — override if external agents need access
 }
 
 variable "allowed_db_cidr" {
   description = "CIDR block allowed for DB2 access"
   type        = string
-  default     = "10.0.0.0/16"  # Internal VNet only
+  default     = "10.0.0.0/16" # Internal VNet only
 }
 
 # VM Configuration
 variable "vm_size" {
   description = "Azure VM size (based on Fyre: 8 vCPU, 14GB RAM)"
   type        = string
-  default     = "Standard_D8s_v3"  # 8 vCPU, 32GB RAM
-  
+  default     = "Standard_D8s_v3" # 8 vCPU, 32GB RAM
+
   # Other options:
   # Standard_D4s_v3  - 4 vCPU, 16GB RAM (smaller)
   # Standard_E8s_v3  - 8 vCPU, 64GB RAM (memory optimized)
@@ -104,8 +105,8 @@ variable "os_disk_size_gb" {
 variable "os_disk_type" {
   description = "OS disk storage type"
   type        = string
-  default     = "Premium_LRS"  # Premium SSD
-  
+  default     = "Premium_LRS" # Premium SSD
+
   # Options:
   # Standard_LRS    - Standard HDD
   # StandardSSD_LRS - Standard SSD

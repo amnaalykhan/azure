@@ -1,0 +1,49 @@
+################################################################################
+# Azure Terraform Variables
+# Approach 1 — Fyre to Azure Migration
+################################################################################
+
+# Azure Authentication
+subscription_id = "630b0990-5eac-49a6-bc6a-70c52c6b42e6"
+tenant_id       = "61363c43-8420-43ca-8f82-801627e16cdf"
+
+# Resource Configuration
+resource_group_name = "rg-fyre-migration"
+location            = "eastus2"   # eastus is blocked for Azure for Students — migrate_any_fyre_vm.sh auto-detects the best region
+project_name        = "fyre-migration"
+
+# Network Configuration
+vnet_address_space = "10.0.0.0/16"
+app_subnet_cidr    = "10.0.1.0/24"
+db_subnet_cidr     = "10.0.2.0/24"
+
+# Security — your current IP for SSH access
+allowed_ssh_cidr = "152.59.185.168/32"
+allowed_tws_cidr = "10.0.0.0/16"
+allowed_db_cidr  = "10.0.0.0/16"
+
+# VM Configuration — keeping small to fit within 6-core quota
+vm_size            = "Standard_D2s_v3"   # 2 vCPU, 8GB RAM
+admin_username     = "azureuser"
+ssh_public_key_path = "/Users/amnaali/.ssh/id_rsa.pub"
+
+# Disk Configuration — keeping minimal for testing
+os_disk_size_gb   = 64
+os_disk_type      = "StandardSSD_LRS"
+data_disk_size_gb = 32
+data_disk_type    = "StandardSSD_LRS"
+
+# Optional Features
+create_public_ip = true
+enable_backup    = false   # skip backup vault to stay within student quota
+
+# Tags
+common_tags = {
+  Environment = "Test"
+  Project     = "Fyre-Migration"
+  ManagedBy   = "Terraform"
+  Source      = "Fyre"
+  Owner       = "amnaali"
+}
+
+# Made with Bob

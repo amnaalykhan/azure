@@ -14,7 +14,7 @@
 
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -28,14 +28,14 @@ provider "azurerm" {
     resource_group {
       prevent_deletion_if_contains_resources = false
     }
-    
+
     virtual_machine {
       delete_os_disk_on_deletion     = true
       graceful_shutdown              = true
       skip_shutdown_and_force_delete = false
     }
   }
-  
+
   subscription_id = var.subscription_id
   tenant_id       = var.tenant_id
 }
@@ -47,7 +47,7 @@ provider "azurerm" {
 resource "azurerm_resource_group" "main" {
   name     = var.resource_group_name
   location = var.location
-  
+
   tags = merge(
     var.common_tags,
     {
@@ -65,7 +65,7 @@ resource "azurerm_virtual_network" "main" {
   address_space       = [var.vnet_address_space]
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  
+
   tags = var.common_tags
 }
 
@@ -87,77 +87,14 @@ resource "azurerm_subnet" "db" {
 # Network Security Groups
 ################################################################################
 
-# Application/TWS NSG
+# Application NSG — rules are managed entirely by dynamic_nsg.tf
+# Do NOT add inline security_rule blocks here; mixing inline rules with
+# azurerm_network_security_rule resources on the same NSG causes a conflict.
 resource "azurerm_network_security_group" "app" {
   name                = "${var.project_name}-app-nsg"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  
-  # SSH Access
-  security_rule {
-    name                       = "SSH"
-    priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = var.allowed_ssh_cidr
-    destination_address_prefix = "*"
-  }
-  
-  # TWS Master Port
-  security_rule {
-    name                       = "TWS-Master"
-    priority                   = 110
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "31114"
-    source_address_prefix      = var.allowed_tws_cidr
-    destination_address_prefix = "*"
-  }
-  
-  # TWS Agent Port
-  security_rule {
-    name                       = "TWS-Agent"
-    priority                   = 120
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "31116"
-    source_address_prefix      = var.allowed_tws_cidr
-    destination_address_prefix = "*"
-  }
-  
-  # DB2 Port
-  security_rule {
-    name                       = "DB2"
-    priority                   = 130
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "50000"
-    source_address_prefix      = var.allowed_db_cidr
-    destination_address_prefix = "*"
-  }
-  
-  # Outbound - Allow all
-  security_rule {
-    name                       = "AllowAllOutbound"
-    priority                   = 100
-    direction                  = "Outbound"
-    access                     = "Allow"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "*"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-  
+
   tags = var.common_tags
 }
 
@@ -178,7 +115,7 @@ resource "azurerm_public_ip" "vm" {
   resource_group_name = azurerm_resource_group.main.name
   allocation_method   = "Static"
   sku                 = "Standard"
-  
+
   tags = var.common_tags
 }
 
@@ -190,14 +127,14 @@ resource "azurerm_network_interface" "vm" {
   name                = "${var.project_name}-vm-nic"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  
+
   ip_configuration {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.app.id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = var.create_public_ip ? azurerm_public_ip.vm[0].id : null
   }
-  
+
   tags = var.common_tags
 }
 
@@ -211,20 +148,20 @@ resource "azurerm_linux_virtual_machine" "tws_db2" {
   resource_group_name = azurerm_resource_group.main.name
   size                = var.vm_size
   admin_username      = var.admin_username
-  
+
   network_interface_ids = [
     azurerm_network_interface.vm.id,
   ]
-  
+
   # SSH Key Authentication
   admin_ssh_key {
     username   = var.admin_username
     public_key = file(var.ssh_public_key_path)
   }
-  
+
   # Disable password authentication
   disable_password_authentication = true
-  
+
   # OS Disk
   os_disk {
     name                 = "${var.project_name}-os-disk"
@@ -232,7 +169,7 @@ resource "azurerm_linux_virtual_machine" "tws_db2" {
     storage_account_type = var.os_disk_type
     disk_size_gb         = var.os_disk_size_gb
   }
-  
+
   # RHEL 9.6 Image
   source_image_reference {
     publisher = "RedHat"
@@ -240,12 +177,12 @@ resource "azurerm_linux_virtual_machine" "tws_db2" {
     sku       = "96-gen2"
     version   = "latest"
   }
-  
+
   # Boot diagnostics
   boot_diagnostics {
     storage_account_uri = azurerm_storage_account.diag.primary_blob_endpoint
   }
-  
+
   tags = merge(
     var.common_tags,
     {
@@ -267,7 +204,7 @@ resource "azurerm_managed_disk" "data" {
   storage_account_type = var.data_disk_type
   create_option        = "Empty"
   disk_size_gb         = var.data_disk_size_gb
-  
+
   tags = var.common_tags
 }
 
@@ -283,12 +220,14 @@ resource "azurerm_virtual_machine_data_disk_attachment" "data" {
 ################################################################################
 
 resource "azurerm_storage_account" "diag" {
-  name                     = "${replace(var.project_name, "-", "")}diag"
+  # Storage account names must be 3-24 chars, lowercase alphanumeric only.
+  # Truncate to 16 chars before appending the 4-char suffix "diag" = 20 chars max.
+  name                     = "${substr(replace(lower(var.project_name), "-", ""), 0, min(16, length(replace(lower(var.project_name), "-", ""))))}diag"
   resource_group_name      = azurerm_resource_group.main.name
   location                 = azurerm_resource_group.main.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
-  
+
   tags = var.common_tags
 }
 
@@ -314,9 +253,9 @@ resource "azurerm_recovery_services_vault" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "Standard"
-  
+
   soft_delete_enabled = true
-  
+
   tags = var.common_tags
 }
 
@@ -325,23 +264,23 @@ resource "azurerm_backup_policy_vm" "daily" {
   name                = "${var.project_name}-backup-policy"
   resource_group_name = azurerm_resource_group.main.name
   recovery_vault_name = azurerm_recovery_services_vault.main[0].name
-  
+
   timezone = "UTC"
-  
+
   backup {
     frequency = "Daily"
     time      = "23:00"
   }
-  
+
   retention_daily {
     count = 30
   }
-  
+
   retention_weekly {
     count    = 12
     weekdays = ["Sunday"]
   }
-  
+
   retention_monthly {
     count    = 12
     weekdays = ["Sunday"]
